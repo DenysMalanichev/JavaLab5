@@ -1,9 +1,9 @@
 import java.util.ArrayList;
 
 public class Text {
-    private ArrayList<TextElement> text;
+    private ArrayList<Sentence> text;
 
-    public Text(ArrayList<TextElement> text) {
+    public Text(ArrayList<Sentence> text) {
         this.text = text;
     }
 
@@ -21,8 +21,9 @@ public class Text {
         return findUniqueWords(t);
     }
 
-    private ArrayList<TextElement> parseString(String text) {
-        ArrayList<TextElement> elements = new ArrayList<>();
+    private ArrayList<Sentence> parseString(String text) {
+        ArrayList<Sentence> sentences = new ArrayList<>();
+        ArrayList<TextElement> currentSentence = new ArrayList<>();
         StringBuilder wordBuilder = new StringBuilder();
 
         for (int i = 0; i < text.length(); i++) {
@@ -30,7 +31,7 @@ public class Text {
 
             if (Character.isWhitespace(currentChar)) {
                 if (!wordBuilder.isEmpty()) {
-                    elements.add(new Word(wordBuilder.toString().toCharArray()));
+                    currentSentence.add(new Word(wordBuilder.toString().toCharArray()));
                     wordBuilder.setLength(0);
                 }
 
@@ -44,35 +45,35 @@ public class Text {
                 wordBuilder.append(currentChar);
             } else {
                 if (!wordBuilder.isEmpty()) {
-                    elements.add(new Word(wordBuilder.toString().toCharArray()));
+                    currentSentence.add(new Word(wordBuilder.toString().toCharArray()));
                     wordBuilder.setLength(0);
                 }
 
-                elements.add(new PunctuationMark(currentChar));
+                currentSentence.add(new PunctuationMark(currentChar));
+                if(currentChar == '.' || currentChar == '!' || currentChar == '?'){
+                    sentences.add(new Sentence(currentSentence));
+                    currentSentence = new ArrayList<>();
+                }
             }
         }
 
         if (!wordBuilder.isEmpty()) {
-            elements.add(new Word(wordBuilder.toString().toCharArray()));
+            currentSentence.add(new Word(wordBuilder.toString().toCharArray()));
+            sentences.add(new Sentence(currentSentence));
         }
 
-        return elements;
+        return sentences;
     }
 
     private static void removeNonQuestionSentences(Text text)
     {
-        int start = 0;
         for(int i = 0; i < text.getText().size(); i++)
         {
-            TextElement element = text.getText().get(i);
-            if(element instanceof PunctuationMark && (((PunctuationMark) element).getPunctuationMark() == '.'
-                    || ((PunctuationMark) element).getPunctuationMark() == '!'))
+            Sentence currentSentence = text.getText().get(i);
+            if((currentSentence.getSentence().get(currentSentence.getSentence().size() - 1) instanceof Word)
+                    || ((PunctuationMark)currentSentence.getSentence().get(currentSentence.getSentence().size() - 1)).getPunctuationMark() != '?')
             {
-                text.getText().subList(start, i + 1).clear();
-                i = start;
-            }
-            else if (element instanceof PunctuationMark && ((PunctuationMark) element).getPunctuationMark() == '?') {
-                start = i;
+                text.getText().remove(i--);
             }
         }
     }
@@ -81,10 +82,14 @@ public class Text {
     {
         for(int i = 0; i < text.getText().size(); i++)
         {
-            if(text.getText().get(i) instanceof Word && ((Word) text.getText().get(i)).getWord().size() != length
-                    || text.getText().get(i) instanceof PunctuationMark)
-            {
-                text.getText().remove(i--);
+            Sentence currentSentence = text.getText().get(i);
+            for(int j = 0; j < currentSentence.getSentence().size(); j++){
+                TextElement el = currentSentence.getSentence().get(j);
+                if(el instanceof Word && ((Word) el).getWord().size() != length
+                        || el instanceof PunctuationMark)
+                {
+                    text.getText().get(i).getSentence().remove(j--);
+                }
             }
         }
     }
@@ -95,9 +100,12 @@ public class Text {
 
         for(int i = 0; i < text.getText().size(); i++)
         {
-            if(!containsInArray(distinctWords, ((Word) text.getText().get(i))))
-            {
-                distinctWords.add((Word)text.getText().get(i));
+            Sentence currentSentence = text.getText().get(i);
+            for(int j = 0; j < currentSentence.getSentence().size(); j++) {
+                Word word = (Word) currentSentence.getSentence().get(j);
+                if (!containsInArray(distinctWords, word)) {
+                    distinctWords.add(word);
+                }
             }
         }
 
@@ -132,24 +140,16 @@ public class Text {
         return true;
     }
 
-    public ArrayList<TextElement> getText() {
+    public ArrayList<Sentence> getText() {
         return text;
     }
 
-    public void setText(ArrayList<TextElement> text) {
+    public void setText(ArrayList<Sentence> text) {
         this.text = text;
     }
 
     @Override
     public String toString() {
-       /* StringBuilder builder = new StringBuilder();
-
-        for (TextElement el: this.text) {
-            builder.append(el);
-        }
-
-        return builder.toString();*/
-
         return this.text.toString();
     }
 }
